@@ -9,8 +9,10 @@ task :create_products => :environment do
   doc.css(".list_productentity").each do |entity|
     link = entity.at_css("a")['href']
     links << "http://www.prodirectsoccer.com#{link}"
+    links
   end
 
+  puts links.count
   # def download(url, output_file)
   #   exit unless system("wget -c #{url} -O #{output_file}")
   # end  
@@ -49,45 +51,41 @@ task :create_products => :environment do
     else
       brand = 'unknown'
     end
-    Product.where(name: name).first_or_create(price: price, brand_id: Brand.find_by_name(brand).id, type_id: Type.find_by_name(type).id, link: link)
+    puts "#{name} - #{link}"
+    Product.where(name: name).first_or_create(price: price, brand_id: Brand.find_by_name(brand).id, type_id: Type.find_by_name(type).id, link: link).update_attributes(type_id: Type.find_by_name(type).id, brand_id: Brand.find_by_name(brand).id,link: link)
     pbar.inc
   end
 end
 
 
-task :update_products => :environment do
+task :update_available_sizes => :environment do
   require 'nokogiri'
   require 'open-uri'
-  AvailableSize.delete_all
-  available_size = []
+  require 'database_cleaner'
+  require 'progressbar'
+  DatabaseCleaner.clean_with(:truncation, :only => %w[available_sizes])
+  pbar = ProgressBar.new("Product", Product.all.count)
   Product.all.each do |product|
     doc = Nokogiri::HTML(open(product.link))
     doc.css(".dlw100_ProdControl1_SizeInStock").each do |size|
-      available_size << [product.id, size.text.gsub(/½/, '.5').to_d]
+      AvailableSize.create(product_id: product.id, size_id: Size.find_by_number(size.text.gsub(/½/, '.5').to_d).id)
     end
-  end
-  available_size.each do |id, size|
-    AvailableSize.create(product_id: id,size_id: Size.find_by_number(size).id)
+    pbar.inc
   end
 end
 
-def find_price(doc)
-  if doc.at_css("#ProdPriceText p").nil?
-    doc.at_css("#ProdPriceText h1").text[/[0-9\.]+/].to_d
-  else
-    doc.at_css("#ProdPriceText p").text[/[0-9\.]+/].to_d
-  end  
-end
-
-task :remove_html do
-  Dir["lib/assets/*.html"].each {|file| File.delete file }
-end
 
 task :initiate_model => :environment do
-  types = ['Firm Ground', 'Indoor', 'Turf', 'Soft Ground', 'Hard Ground', 'Artificial Grass']
+  require 'database_cleaner'
+  DatabaseCleaner.clean_with(:truncation, :only => %w[types brands sizes products])
+  types = ['Firm Ground', 'Indoor', 'Turf', 'Soft Ground', 'Hard Ground', 'Artificial Grass', 'unknown']
   brands = ['adidas', 'Nike']
   sizes = (3..15).step(0.5).to_a
   types.each {|t| Type.create(name: t) }
   brands.each {|b| Brand.create(name: b) }
   sizes.each {|s| Size.create(number: s) }
+end
+
+task :download_images => :environment do
+  
 end

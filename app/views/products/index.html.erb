@@ -1,0 +1,19 @@
+<% @products.each do |product| %>
+  <ul>
+    <li>
+      <%= link_to "#{product.name}", product.link %>
+    </li>
+    <img src="<%= "http://images.prodirectsport.com/v3_products/Thumbs/#{product.link[/(\d*).aspx$/, 1]}.jpg" %>">
+    <li><%= product.brand.name %></li>
+    <li><%= product.type.name %></li>
+    <ul class="button-group">
+      <% product.sizes.each do |size| %>
+        <li>
+          <a href="#" class="small button"><%= size.number %>
+          </a>
+        </li>
+      <% end %>
+    </ul>
+    <li><%= number_to_currency(product.price, unit: "£") %></li>
+  </ul>
+<% end %>
